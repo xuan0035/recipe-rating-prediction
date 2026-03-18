@@ -197,22 +197,127 @@ This is an important finding for our prediction problem: recipe complexity as me
 
 ## Framing the Prediction Problem
 
-*Coming soon.*
+We frame our prediction problem as follows: **given a recipe's characteristics, can we predict its average star rating?**
+
+This is a **multi-class classification problem**. We round `avg_rating` to the nearest integer, giving us five possible classes: 1, 2, 3, 4, and 5 stars. We chose classification over regression because star ratings are naturally ordinal categories, and it allows us to use a more meaningful evaluation metric given the class imbalance in our data.
+
+**Response variable:** `avg_rating` rounded to the nearest integer. We chose this as our response variable because it directly answers our central question — what makes a recipe highly rated? — and is a natural representation of user satisfaction on a 1–5 scale.
+
+**Features used at prediction time:** We only use features that describe the recipe itself and would be known *before* any user rates it: `n_steps`, `n_ingredients`, `minutes`, `calories`, `total_fat`, `sugar`, `sodium`, `protein`, `sat_fat`, and `carbs`. We deliberately exclude `n_ratings` since that is derived from user interactions and would not be available at prediction time for a brand new recipe.
+
+**Evaluation metric:** Weighted F1 score. As we observed in EDA, over half of all recipes have a perfect 5-star average rating — this severe class imbalance means accuracy would be misleading. A model that always predicts 5 would achieve high accuracy while learning nothing useful. Weighted F1 score accounts for class imbalance by weighting each class's F1 score by its support, giving us a more honest picture of true model performance across all rating categories.
 
 ---
 
 ## Baseline Model
 
-*Coming soon.*
+Our baseline model uses a **Random Forest Classifier** with two quantitative features:
+
+- `n_steps` — number of steps in the recipe (quantitative)
+- `n_ingredients` — number of ingredients required (quantitative)
+
+Both features are standardized using `StandardScaler` before being passed to the classifier. All steps are implemented in a single `sklearn` Pipeline. Neither feature required ordinal or one-hot encoding since both are already numeric.
+
+### Results
+
+| Metric | Score |
+|--------|-------|
+| Weighted F1 Score | 0.5593 |
+
+| Class | Precision | Recall | F1 |
+|-------|-----------|--------|----|
+| 1 star | 0.00 | 0.00 | 0.00 |
+| 2 stars | 0.00 | 0.00 | 0.00 |
+| 3 stars | 0.00 | 0.00 | 0.00 |
+| 4 stars | 0.19 | 0.00 | 0.00 |
+| 5 stars | 0.69 | 1.00 | 0.81 |
+
+### Analysis
+
+The baseline model is **not good**. Despite a weighted F1 of 0.5593, the classification report reveals that the model essentially predicts 5 stars for almost every recipe — achieving perfect recall on class 5 while completely failing on classes 1 through 4. This behavior is a direct consequence of the severe class imbalance we identified in EDA: 56,124 out of 81,173 recipes (69%) have a 5-star rounded average rating.
+
+This tells us that `n_steps` and `n_ingredients` alone carry almost no discriminative signal for predicting rating. To build a meaningful model, we need to incorporate more informative features — particularly nutritional information — and address the class imbalance more carefully. This motivates our Final Model in Step 7.
 
 ---
 
 ## Final Model
 
-*Coming soon.*
+### Feature Engineering
+
+We added four new features on top of the baseline's `n_steps` and `n_ingredients`:
+
+| Feature | Transformation | Justification |
+|---------|---------------|---------------|
+| `calories` | QuantileTransformer | Caloric content is heavily right-skewed with extreme outliers. QuantileTransformer maps it to a normal distribution, reducing the influence of extreme values. Indulgent high-calorie recipes tend to be comfort foods that users rate highly. |
+| `protein` | QuantileTransformer | Protein content is similarly skewed. Health-conscious users may rate high-protein recipes more favorably, making this a meaningful signal. |
+| `sugar` | QuantileTransformer | Our hypothesis test found that sugary recipes tend to be rated slightly lower. Including this feature lets the model capture that relationship. |
+| `minutes_capped` | StandardScaler | Cook time is roughly normally distributed after capping at the 99th percentile. Very long recipes may frustrate users and lead to lower ratings. |
+
+### Hyperparameter Tuning
+
+We tuned two hyperparameters of the `RandomForestClassifier` using 5-fold cross-validation with `GridSearchCV`:
+
+- **`max_depth`** — controls how deep each tree grows. Shallower trees underfit; deeper trees overfit. We searched `[10, 20, 30, None]`.
+- **`n_estimators`** — number of trees in the forest. More trees produce more stable predictions but increase training time. We searched `[100, 200]`.
+
+We also set `class_weight="balanced"` to address class imbalance — this adjusts each class's weight inversely proportional to its frequency, encouraging the model to learn minority classes (1–3 stars) rather than always predicting 5.
+
+The best hyperparameters found were `max_depth=20` and `n_estimators=100`, with a cross-validated F1 of **0.5830**.
+
+### Results
+
+| Metric | Baseline | Final Model |
+|--------|----------|-------------|
+| Weighted F1 Score | 0.5593 | 0.5769 |
+| Improvement | — | +0.0176 |
+
+| Class | Precision | Recall | F1 |
+|-------|-----------|--------|----|
+| 1 star | 0.00 | 0.00 | 0.00 |
+| 2 stars | 0.00 | 0.00 | 0.00 |
+| 3 stars | 0.08 | 0.00 | 0.00 |
+| 4 stars | 0.29 | 0.10 | 0.14 |
+| 5 stars | 0.69 | 0.91 | 0.79 |
+
+### Analysis
+
+The final model improves upon the baseline with a weighted F1 score of **0.5769** compared to **0.5593**. More importantly, the model now correctly identifies some 4-star recipes (recall of 0.10), whereas the baseline completely ignored all non-5-star classes. The addition of nutritional features and `class_weight="balanced"` helped the model begin to distinguish between rating classes.
+
+The persistent difficulty in predicting 1–3 star ratings reflects a fundamental challenge in this dataset: with only 590, 775, and 2,760 recipes in those classes respectively compared to 56,124 five-star recipes, even a well-tuned model struggles to learn meaningful patterns for rare classes. This is an inherent property of the data generating process — Food.com users overwhelmingly rate recipes positively.
 
 ---
 
 ## Fairness Analysis
 
-*Coming soon.*
+### Does our model perform differently for high-calorie vs. low-calorie recipes?
+
+We split recipes in our test set into two groups based on calorie content:
+- **Low-calorie:** recipes with calories ≤ 303.80 (median calories in test set)
+- **High-calorie:** recipes with calories > 303.80
+
+We chose this split because calories is one of our key features, and we want to ensure the model does not systematically perform better or worse for recipes at different ends of the calorie spectrum.
+
+**Evaluation metric:** Weighted F1 score (same metric used to evaluate overall model performance).
+
+**Null Hypothesis:** The model is fair. Its weighted F1 score for low-calorie and high-calorie recipes are roughly the same, and any observed difference is due to random chance.
+
+**Alternative Hypothesis:** The model is unfair. Its weighted F1 score differs between low-calorie and high-calorie recipes.
+
+**Test Statistic:** Difference in weighted F1 score (low-calorie − high-calorie).
+
+**Significance Level:** 0.05
+
+We ran a permutation test with 1,000 permutations, shuffling the group labels each time to simulate the null hypothesis.
+
+<iframe src="assets/fairness.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
+
+| Group | Weighted F1 |
+|-------|------------|
+| Low-calorie (≤ 303.80 cal) | 0.5807 |
+| High-calorie (> 303.80 cal) | 0.5709 |
+| Observed difference | 0.0098 |
+| P-value | 0.2730 |
+
+### Conclusion
+
+Since the p-value of **0.273** is greater than our significance level of 0.05, we **fail to reject the null hypothesis**. The observed difference of 0.0098 in weighted F1 between low-calorie and high-calorie recipes is well within the range of what we would expect by random chance alone. Our model appears to perform equally well across both calorie groups, suggesting it does not exhibit calorie-based bias in its predictions.
