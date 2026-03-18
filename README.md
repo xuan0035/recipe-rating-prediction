@@ -60,13 +60,13 @@ Here are the first 5 rows of the cleaned dataframe (relevant columns shown):
 
 **Distribution of Average Recipe Ratings**
 
-<iframe src="assets/rating_dist.html" width="800" height="500" frameborder="0"></iframe>
+<iframe src="assets/rating_dist.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
 
 The distribution of average ratings is heavily left-skewed — 47,784 out of 83,782 recipes have a perfect average rating of 5.0, and the vast majority of recipes fall between 4 and 5 stars. This class imbalance is a critical observation: it means a naive model that always predicts 5 would already achieve high accuracy, which is why we use F1 score instead of accuracy to evaluate our classifier.
 
 **Distribution of Number of Steps**
 
-<iframe src="assets/steps_dist.html" width="800" height="500" frameborder="0"></iframe>
+<iframe src="assets/steps_dist.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
 
 The number of steps per recipe is right-skewed, with a median of 9 steps and a mean of about 10. Most recipes fall between 6 and 15 steps, though a small number of recipes have over 30 steps. This suggests that most Food.com recipes are moderately complex.
 
@@ -76,13 +76,13 @@ The number of steps per recipe is right-skewed, with a median of 9 steps and a m
 
 **Cooking Time vs. Average Rating**
 
-<iframe src="assets/time_vs_rating.html" width="800" height="500" frameborder="0"></iframe>
+<iframe src="assets/time_vs_rating.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
 
 There is no clear linear relationship between cooking time and average rating. Recipes across all cooking times tend to cluster around 4–5 stars, consistent with the overall rating distribution. This suggests that how long a recipe takes to make does not strongly predict how users will rate it.
 
 **Number of Steps vs. Average Rating**
 
-<iframe src="assets/steps_vs_rating.html" width="800" height="500" frameborder="0"></iframe>
+<iframe src="assets/steps_vs_rating.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
 
 Similarly, there is no strong trend between number of steps and average rating. Both simple and complex recipes receive high ratings, suggesting that recipe complexity alone is not a reliable predictor of user satisfaction.
 
@@ -100,7 +100,7 @@ We grouped recipes into bins by number of steps and computed the mean average ra
 | 16–20 | 4.638 | 7,410 |
 | 20+   | 4.647 | 4,944 |
 
-<iframe src="assets/steps_agg.html" width="800" height="500" frameborder="0"></iframe>
+<iframe src="assets/steps_agg.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;" ></iframe>
 
 Interestingly, the mean average rating is remarkably consistent across all step count groups, ranging only from 4.616 to 4.647. This tells us that users do not systematically rate simpler or more complex recipes higher — the number of steps alone carries very little signal for predicting ratings. This motivates us to look beyond simple structural features and incorporate nutritional information in our model.
 
@@ -162,7 +162,36 @@ The observed difference in mean protein content was **1.2873**. After 1,000 perm
 
 ## Hypothesis Testing
 
-*Coming soon.*
+### Do more complex recipes receive lower ratings than simpler recipes?
+
+From our EDA, we observed that mean ratings across recipes with different numbers of steps were remarkably similar. We now formally test whether this difference is statistically significant or simply due to random chance.
+
+We define **"complex" recipes** as those with more than 9 steps (above the median of 9 steps), and **"simple" recipes** as those with 9 steps or fewer.
+
+**Null Hypothesis:** Complex recipes and simple recipes are rated on the same scale. Any observed difference in mean ratings between the two groups is due to random chance.
+
+**Alternative Hypothesis:** Complex recipes receive lower average ratings than simple recipes.
+
+**Test Statistic:** Difference in mean average rating (complex − simple). We chose this directional test statistic because our alternative hypothesis is one-sided — we are specifically testing whether complex recipes are rated *lower*.
+
+**Significance Level:** 0.05
+
+We ran a permutation test with 1,000 permutations, shuffling the `avg_rating` values across both groups each time to simulate the null hypothesis.
+
+<iframe src="assets/hypothesis_test.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
+
+| | Mean Rating |
+|---|---|
+| Simple recipes (≤ 9 steps) | 4.6268 |
+| Complex recipes (> 9 steps) | 4.6237 |
+| Observed difference | -0.0031 |
+| P-value | 0.235 |
+
+### Conclusion
+
+Since the p-value of **0.235** is greater than our significance level of 0.05, we **fail to reject the null hypothesis**. The data does not provide sufficient evidence that complex recipes receive lower ratings than simple ones. The observed difference of -0.0031 is well within the range of what we would expect by random chance alone.
+
+This is an important finding for our prediction problem: recipe complexity as measured by number of steps carries very little signal for predicting ratings. This motivates us to look beyond structural features like steps and cooking time, and instead incorporate nutritional information and other recipe characteristics in our model.
 
 ---
 
