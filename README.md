@@ -36,15 +36,15 @@ The dataset contains **83,782 recipes** submitted since 2008. We merged the reci
 
 ### Data Cleaning
 
-We performed the following cleaning steps:
+We performed the following cleaning steps on the raw data:
 
-1. **Left merged** `RAW_recipes.csv` with `RAW_interactions.csv` on recipe ID, so every recipe is kept even if it has no reviews.
-2. **Replaced ratings of 0 with `NaN`** — on Food.com, a rating of 0 means the user left a review without submitting a star rating. It is a missing value, not a genuine score, so treating it as 0 would bias our averages downward.
-3. **Computed average rating per recipe** and added it back to the recipes dataframe as `avg_rating`.
-4. **Parsed the `nutrition` column** from a string representation of a list into separate numeric columns: `calories`, `total_fat`, `sugar`, `sodium`, `protein`, `sat_fat`, and `carbs`.
-5. **Added `n_ratings`** — the number of valid (non-NaN) ratings per recipe. This captures how much user engagement a recipe received and may be useful as a feature.
+1. **Left merged** `RAW_recipes.csv` with `RAW_interactions.csv` on recipe ID. A left merge ensures every recipe is retained even if it has no reviews — dropping unrated recipes would bias our dataset toward only popular ones.
+2. **Replaced ratings of 0 with `NaN`** — on Food.com, a rating of 0 means the user submitted a review without selecting a star rating. It is not a genuine score, so including it as 0 would artificially pull average ratings downward.
+3. **Computed average rating per recipe** (`avg_rating`) and the number of valid ratings (`n_ratings`) and added both back to the recipes dataframe.
+4. **Parsed the `nutrition` column** from a string representation into separate numeric columns: `calories`, `total_fat`, `sugar`, `sodium`, `protein`, `sat_fat`, and `carbs`. These values are expressed as percentage of daily value (PDV), except calories which is an absolute count.
+5. **Capped `minutes` at the 99th percentile** (730 minutes) to remove extreme outliers — some recipes had cook times in the millions of minutes, which are clearly data entry errors and would distort visualizations and model training.
 
-Here are the first 5 rows of the cleaned dataframe (selected relevant columns):
+Here are the first 5 rows of the cleaned dataframe (relevant columns shown):
 
 | name | minutes | n_steps | n_ingredients | calories | avg_rating | n_ratings |
 |------|---------|---------|---------------|----------|------------|-----------|
@@ -54,35 +54,55 @@ Here are the first 5 rows of the cleaned dataframe (selected relevant columns):
 | millionaire pound cake | 120 | 7 | 7 | 878.3 | 5.0 | 1 |
 | 2000 meatloaf | 90 | 17 | 13 | 267.0 | 5.0 | 2 |
 
+---
+
 ### Univariate Analysis
 
-**[INSERT PLOTLY HISTOGRAM OF avg_rating HERE]**
+**Distribution of Average Recipe Ratings**
 
-The distribution of average ratings is heavily left-skewed, with the vast majority of recipes rated 4 or 5 stars. This class imbalance is important to keep in mind when building our model — it means accuracy alone would be a misleading metric.
+<iframe src="assets/rating_dist.html" width="800" height="500" frameborder="0"></iframe>
 
-**[INSERT PLOTLY HISTOGRAM OF n_steps HERE]**
+The distribution of average ratings is heavily left-skewed — 47,784 out of 83,782 recipes have a perfect average rating of 5.0, and the vast majority of recipes fall between 4 and 5 stars. This class imbalance is a critical observation: it means a naive model that always predicts 5 would already achieve high accuracy, which is why we use F1 score instead of accuracy to evaluate our classifier.
 
-The distribution of number of steps is right-skewed, with most recipes having between 5 and 15 steps. A small number of recipes have extremely high step counts.
+**Distribution of Number of Steps**
+
+<iframe src="assets/steps_dist.html" width="800" height="500" frameborder="0"></iframe>
+
+The number of steps per recipe is right-skewed, with a median of 9 steps and a mean of about 10. Most recipes fall between 6 and 15 steps, though a small number of recipes have over 30 steps. This suggests that most Food.com recipes are moderately complex.
+
+---
 
 ### Bivariate Analysis
 
-**[INSERT PLOTLY SCATTER OR BOX PLOT OF avg_rating vs n_steps HERE]**
+**Cooking Time vs. Average Rating**
 
-When we examine average rating against number of steps, we see no strong linear trend — recipes with both few and many steps receive high ratings. This suggests that complexity alone does not drive user satisfaction.
+<iframe src="assets/time_vs_rating.html" width="800" height="500" frameborder="0"></iframe>
+
+There is no clear linear relationship between cooking time and average rating. Recipes across all cooking times tend to cluster around 4–5 stars, consistent with the overall rating distribution. This suggests that how long a recipe takes to make does not strongly predict how users will rate it.
+
+**Number of Steps vs. Average Rating**
+
+<iframe src="assets/steps_vs_rating.html" width="800" height="500" frameborder="0"></iframe>
+
+Similarly, there is no strong trend between number of steps and average rating. Both simple and complex recipes receive high ratings, suggesting that recipe complexity alone is not a reliable predictor of user satisfaction.
+
+---
 
 ### Interesting Aggregates
 
-We grouped recipes into bins by number of steps and computed the mean average rating for each bin:
+We grouped recipes into bins by number of steps and computed the mean average rating for each group:
 
-**[INSERT PLOTLY BAR CHART OF avg rating by steps bin HERE]**
+| Steps | Mean Avg Rating | Recipe Count |
+|-------|----------------|--------------|
+| 1–5   | 4.638 | 18,547 |
+| 6–10  | 4.616 | 31,915 |
+| 11–15 | 4.618 | 18,357 |
+| 16–20 | 4.638 | 7,410 |
+| 20+   | 4.647 | 4,944 |
 
-| Steps | Mean Avg Rating |
-|-------|----------------|
-| 1–5   | **[value]** |
-| 6–10  | **[value]** |
-| 11–15 | **[value]** |
-| 16–20 | **[value]** |
-| 20+   | **[value]** |
+<iframe src="assets/steps_agg.html" width="800" height="500" frameborder="0"></iframe>
+
+Interestingly, the mean average rating is remarkably consistent across all step count groups, ranging only from 4.616 to 4.647. This tells us that users do not systematically rate simpler or more complex recipes higher — the number of steps alone carries very little signal for predicting ratings. This motivates us to look beyond simple structural features and incorporate nutritional information in our model.
 
 ---
 
