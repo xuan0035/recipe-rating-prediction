@@ -108,7 +108,55 @@ Interestingly, the mean average rating is remarkably consistent across all step 
 
 ## Assessment of Missingness
 
-*Coming soon.*
+### NMAR Analysis
+
+We believe that the `description` column in the dataset is likely **NMAR** (Not Missing At Random). A recipe's description is missing not randomly, but likely because the contributor chose not to write one — and that decision may be related to the content of the description itself. For example, contributors who feel their recipe is self-explanatory, or who are less experienced users on Food.com, may be more likely to skip writing a description. The missingness is therefore tied to the unobserved value itself, which is the defining characteristic of NMAR.
+
+To determine whether this missingness is actually MAR (Missing At Random), we would need additional data — for example, the contributor's account age, their total number of submitted recipes, or their activity level on the platform. If less active or newer contributors are more likely to skip descriptions, then the missingness would depend on an observed variable and could be reclassified as MAR.
+
+---
+
+### Missingness Dependency
+
+We analyzed the missingness of `avg_rating`, which is missing for **2,609 out of 83,782 recipes (3.1%)**. These are recipes that exist on Food.com but have never received a rating from any user. We ran permutation tests to determine whether this missingness depends on other columns, using the **absolute difference in group means** as our test statistic and a significance level of **0.05**.
+
+---
+
+#### Does missingness of `avg_rating` depend on `n_ingredients`?
+
+**Null Hypothesis:** The missingness of `avg_rating` does not depend on the number of ingredients in the recipe. Any observed difference in mean `n_ingredients` between recipes with and without a missing rating is due to random chance.
+
+**Alternative Hypothesis:** The missingness of `avg_rating` does depend on the number of ingredients. Recipes with missing ratings have a systematically different number of ingredients than recipes with ratings.
+
+**Test Statistic:** Absolute difference in mean `n_ingredients` between recipes where `avg_rating` is missing and recipes where it is not.
+
+**Significance Level:** 0.05
+
+The plot below shows the distribution of `n_ingredients` for recipes where `avg_rating` is missing versus not missing:
+
+<iframe src="assets/missing_dist.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
+
+Recipes with missing ratings appear to have slightly more ingredients on average. We ran a permutation test to assess whether this difference is statistically significant:
+
+<iframe src="assets/missing_ingr.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
+
+The observed difference in mean number of ingredients was **0.2542**. After 1,000 permutations, we obtained a **p-value of 0.001**, which is less than our significance level of 0.05. We **reject the null hypothesis** — the missingness of `avg_rating` does depend on `n_ingredients`. This makes intuitive sense: recipes with more ingredients may be more niche or complex, attracting fewer users and therefore fewer ratings.
+
+---
+
+#### Does missingness of `avg_rating` depend on `protein`?
+
+**Null Hypothesis:** The missingness of `avg_rating` does not depend on the protein content of the recipe. Any observed difference in mean protein between recipes with and without a missing rating is due to random chance.
+
+**Alternative Hypothesis:** The missingness of `avg_rating` does depend on the protein content of the recipe.
+
+**Test Statistic:** Absolute difference in mean `protein` (PDV) between recipes where `avg_rating` is missing and recipes where it is not.
+
+**Significance Level:** 0.05
+
+<iframe src="assets/missing_prot.html" width="800" height="500" frameborder="0" style="background-color: #ECE4D8;"></iframe>
+
+The observed difference in mean protein content was **1.2873**. After 1,000 permutations, we obtained a **p-value of 0.201**, which is greater than our significance level of 0.05. We **fail to reject the null hypothesis** — the missingness of `avg_rating` does not depend on protein content. This makes intuitive sense: whether a recipe gets rated by users is unlikely to be related to how much protein it contains. The protein content is a property of the recipe itself, not a factor that would influence user engagement.
 
 ---
 
