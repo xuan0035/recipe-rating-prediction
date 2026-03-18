@@ -1,6 +1,6 @@
 # Recipe Rating Prediction
 
-**Authors:** [Your Name]
+**Author:** Xuan Yin
 
 ---
 
