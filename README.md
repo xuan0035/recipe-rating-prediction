@@ -1,4 +1,4 @@
-# Recipe Rating Prediction
+# What Makes a Recipe a 5-Star Hit?
 
 **Author:** Xuan Yin
 
@@ -6,7 +6,7 @@
 
 ## Introduction
 
-What makes a recipe highly rated? With millions of home cooks turning to the internet for culinary inspiration, understanding what separates a 5-star recipe from a mediocre one has real practical value — both for recipe creators and for platforms like Food.com that want to surface the best content.
+What makes a recipe highly rated? Every home cook has wondered why some dishes earn rave reviews while others fall flat. Understanding what separates a 5-star recipe from a mediocre one has real practical value for anyone looking to improve their cooking or share their recipes with the world.
 
 This project investigates a dataset of recipes and user interactions scraped from Food.com, originally compiled for a 2008 research paper on personalized recipe recommendation, [Generating Personalized Recipes from Historical User Preferences](https://cseweb.ucsd.edu/~jmcauley/pdfs/emnlp19c.pdf) by Majumder et al.
 
@@ -195,7 +195,7 @@ This is an important finding for our prediction problem: recipe complexity as me
 
 ---
 
-## Framing the Prediction Problem
+## Framing a Prediction Problem
 
 We frame our prediction problem as follows: **given a recipe's characteristics, can we predict its average star rating?**
 
